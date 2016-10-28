@@ -82,9 +82,9 @@ public class SpheroViewController: UIViewController {
     let timerInterval: TimeInterval = 0.5
     var lastX: Double = 0.0
     var lastY: Double = 0.0
-    let distThreshold = 0.2
+    let distThreshold = 0.1
 
-    public var joystickMoved: ((_ angle: Double, _ magnitude: Double) -> Void)?
+    public var directionVectorChanged: ((_ angle: Double, _ magnitude: Double) -> Void)?
     public var colorSelected: ((UIColor) -> Void)?
     
     private var point: CGPoint? {
@@ -108,7 +108,9 @@ public class SpheroViewController: UIViewController {
             }
             
             colorSelected?(selectedWell.color)
-            joystickMoved?(0, 0)
+            directionVectorChanged?(0, 0)
+            lastX = 0.0
+            lastY = 0.0
         }
     }
     
@@ -198,13 +200,13 @@ public class SpheroViewController: UIViewController {
         let deltaY = -(cos(radiansFromTop) * radius) + circle.bounds.midY
         
         let magnitude = radius / (circle.bounds.width / 2)
-        joystickMoved?(Double(radiansFromTop), Double(magnitude))
+        directionVectorChanged?(Double(radiansFromTop), Double(magnitude))
         
         point = CGPoint(x: deltaX + circle.frame.origin.x, y: deltaY + circle.frame.origin.y)
     }
     
     override public func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        joystickMoved?(0, 0)
+        directionVectorChanged?(0, 0)
         point = nil
         touchedInside = false
     }
@@ -258,14 +260,20 @@ public class SpheroViewController: UIViewController {
             let newX = matrix.m13
             let newY = -1.0 * matrix.m23
             // Compute distance from last saved point to new point
-            let dist = distanceBetween(x1: newY, y1: newY, x2: lastX, y2: lastY)
+            let dist = distanceBetween(x1: newX, y1: newY, x2: lastX, y2: lastY)
             if dist > distThreshold {
                 lastX = newX
                 lastY = newY
                 // Compute the angle and magnitude
                 let vectorMagnitude = sqrt(newX * newX + newY * newY)
                 let vectorAngle = angle(vx: newX, vy: newY)
-                joystickMoved?(vectorAngle, vectorMagnitude)
+                directionVectorChanged?(vectorAngle, vectorMagnitude)
+                // Compute the radius
+                let radius = vectorMagnitude * Double(circle.bounds.width / 2.0)
+                let deltaX = CGFloat(sin(vectorAngle) * radius) + circle.bounds.midX
+                let deltaY = CGFloat(-(cos(vectorAngle) * radius)) + circle.bounds.midY
+                // Update the location of the circle
+                point = CGPoint(x: deltaX + circle.frame.origin.x, y: deltaY + circle.frame.origin.y)
             }
         }
     }
